@@ -21,3 +21,5 @@ GTAGS
 *.swp
 *.patch
 *.gcov
+/slf-test
+/ast2600-test
