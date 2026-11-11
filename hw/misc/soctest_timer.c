@@ -9,18 +9,18 @@
 #include "hw/misc/soctest_timer.h"
 
 static void soctest_timer_update_irq(SocTestTimerState *s){
-    bool level = (s->regs[R_CTRL / 4] & CTRL_EN) &&
-                 (s->regs[R_CTRL / 4] & CTRL_IRQ_EN) &&
-                 (s->regs[R_STATUS /4] & STATUS_MATCH);
+    bool level = (s->regs[SOCTEST_TIMER_R_CTRL / 4] & SOCTEST_TIMER_CTRL_EN) &&
+                 (s->regs[SOCTEST_TIMER_R_CTRL / 4] & SOCTEST_TIMER_CTRL_IRQ_EN) &&
+                 (s->regs[SOCTEST_TIMER_R_STATUS /4] & SOCTEST_TIMER_STATUS_MATCH);
     qemu_set_irq(s->irq, level);              
 }
 
 static void soctest_timer_expire(void *opaque){
     SocTestTimerState *s = opaque;
 
-    s->regs[R_TICKS / 4] ++;
-    s->regs[R_STATUS / 4] |= STATUS_MATCH;      // match位置1
-    trace_soctest_timer_tick(s->regs[R_TICKS / 4]);
+    s->regs[SOCTEST_TIMER_R_TICKS / 4] ++;
+    s->regs[SOCTEST_TIMER_R_STATUS / 4] |= SOCTEST_TIMER_STATUS_MATCH;      // match位置1
+    trace_soctest_timer_tick(s->regs[SOCTEST_TIMER_R_TICKS / 4]);
     soctest_timer_update_irq(s);
 }
 
@@ -28,7 +28,7 @@ static void soctest_timer_load(SocTestTimerState *s)
 {
     ptimer_transaction_begin(s->timer);
     ptimer_set_period(s->timer, 1);                         /* 1 tick = 1 ns */
-    ptimer_set_limit(s->timer, s->regs[R_PERIOD / 4], 1);    /* 计数值 = ns,reload=1 */
+    ptimer_set_limit(s->timer, s->regs[SOCTEST_TIMER_R_PERIOD / 4], 1);    /* 计数值 = ns,reload=1 */
     ptimer_run(s->timer, 0);                                /* 0 = 周期模式 */
     ptimer_transaction_commit(s->timer);
 }
@@ -38,20 +38,20 @@ static uint64_t soctest_timer_read(void *opaque, hwaddr offset, unsigned size){
     uint64_t value = 0;
 
     switch(offset){
-        case R_MAGIC:
+        case SOCTEST_TIMER_R_MAGIC:
             value = SOCTEST_TIMER_MAGIC;
             break;
-        case R_VERSION:
+        case SOCTEST_TIMER_R_VERSION:
             value = SOCTEST_TIMER_VERSION;
             break;
-        case R_COUNT:    
+        case SOCTEST_TIMER_R_COUNT:    
             value = ptimer_get_count(s->timer);   // 实时计算当前定时器的剩余计数值
             break;
-        case R_SCRATCH:
-        case R_PERIOD:
-        case R_CTRL:
-        case R_TICKS:
-        case R_STATUS:
+        case SOCTEST_TIMER_R_SCRATCH:
+        case SOCTEST_TIMER_R_PERIOD:
+        case SOCTEST_TIMER_R_CTRL:
+        case SOCTEST_TIMER_R_TICKS:
+        case SOCTEST_TIMER_R_STATUS:
             value = s->regs[offset / 4];
             break;
         default:
@@ -72,41 +72,41 @@ static void soctest_timer_write(void *opaque, hwaddr offset,
     trace_soctest_timer_write(offset, size, value);
 
     switch(offset){
-        case R_MAGIC:
-        case R_VERSION:
-        case R_COUNT:    
-        case R_TICKS:
+        case SOCTEST_TIMER_R_MAGIC:
+        case SOCTEST_TIMER_R_VERSION:
+        case SOCTEST_TIMER_R_COUNT:    
+        case SOCTEST_TIMER_R_TICKS:
             qemu_log_mask(LOG_GUEST_ERROR,
                       "%s: write to RO reg 0x%" HWADDR_PRIx "\n",
                       __func__, offset);
             return;
-        case R_SCRATCH:
+        case SOCTEST_TIMER_R_SCRATCH:
             s->regs[offset / 4] = value;
             return;
-        case R_STATUS:
+        case SOCTEST_TIMER_R_STATUS:
             /* W1C:写 1 清 MATCH */
             s->regs[offset / 4] &= ~value;
             soctest_timer_update_irq(s);
             return;
-        case R_PERIOD:
+        case SOCTEST_TIMER_R_PERIOD:
             // 修改 ptimer 的状态（如频率、运行/停止）必须包裹在 ptimer_transaction_begin() 和 ptimer_transaction_commit() 之间
             if(value == 0){
                 qemu_log_mask(LOG_GUEST_ERROR,
                               "%s: period 0 is invalid, using 1\n", __func__);
                 value = 1;
             }
-            s->regs[R_PERIOD / 4] = value;
+            s->regs[SOCTEST_TIMER_R_PERIOD / 4] = value;
             soctest_timer_load(s);
             return;
-        case R_CTRL:
+        case SOCTEST_TIMER_R_CTRL:
             ptimer_transaction_begin(s->timer);
             {
-                uint32_t old_ctrl = s->regs[R_CTRL / 4];
+                uint32_t old_ctrl = s->regs[SOCTEST_TIMER_R_CTRL / 4];
                 s->regs[offset / 4] = value;
 
-                if((old_ctrl & CTRL_EN) && !(value & CTRL_EN)){
+                if((old_ctrl & SOCTEST_TIMER_CTRL_EN) && !(value & SOCTEST_TIMER_CTRL_EN)){
                     ptimer_stop(s->timer);
-                }else if(!(old_ctrl & CTRL_EN) && (value & CTRL_EN)){
+                }else if(!(old_ctrl & SOCTEST_TIMER_CTRL_EN) && (value & SOCTEST_TIMER_CTRL_EN)){
                     ptimer_run(s->timer, 0);
                 }
             }
@@ -134,11 +134,11 @@ static const MemoryRegionOps soctest_timer_ops = {
 static void soctest_timer_reset_hold(Object *obj, ResetType type){
     SocTestTimerState *s = SOCTEST_TIMER(obj);
 
-    s->regs[R_SCRATCH / 4] = 0;
-    s->regs[R_PERIOD / 4]  = 1000000;
-    s->regs[R_CTRL / 4]    = 0;
-    s->regs[R_TICKS / 4]   = 0;
-    s->regs[R_STATUS / 4]  = 0;
+    s->regs[SOCTEST_TIMER_R_SCRATCH / 4] = 0;
+    s->regs[SOCTEST_TIMER_R_PERIOD / 4]  = 1000000;
+    s->regs[SOCTEST_TIMER_R_CTRL / 4]    = 0;
+    s->regs[SOCTEST_TIMER_R_TICKS / 4]   = 0;
+    s->regs[SOCTEST_TIMER_R_STATUS / 4]  = 0;
     
     soctest_timer_load(s);
     qemu_set_irq(s->irq, 0);

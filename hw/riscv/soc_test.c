@@ -7,20 +7,24 @@
 #include "hw/i2c/i2c.h"
 #include "hw/i2c/designware_i2c.h"
 #include "hw/intc/sifive_plic.h"
+#include "hw/intc/riscv_aclint.h"
 #include "hw/riscv/riscv_hart.h"
 #include "hw/riscv/boot.h"              /* riscv_plic_hart_config_string() */
 #include "hw/char/serial-mm.h"
 #include "hw/misc/soctest_timer.h"
+#include "hw/misc/soctest_dma.h"
 #include "system/memory.h"
 #include "system/system.h"
 #include "system/address-spaces.h"
 #include "target/riscv/cpu.h"
 
+#define SOCTEST_CLINT_BASE   0x02000000 
+#define SOCTEST_PLIC_BASE    0x0c000000
 #define SOCTEST_UART0_BASE   0x10000000
 #define SOCTEST_TIMER_BASE   0x10001000
 #define SOCTEST_I2C_BASE     0x10002000
+#define SOCTEST_DMA_BASE     0x10004000
 #define SOCTEST_DDR_BASE     0x80000000
-#define SOCTEST_PLIC_BASE    0x0c000000
 
 #define SOCTEST_DDR_SIZE            (2 * GiB)
 #define SOCTEST_PLIC_SIZE           0x04000000
@@ -38,6 +42,7 @@
 #define SOCTEST_IRQ_UART0    1
 #define SOCTEST_IRQ_TIMER    2
 #define SOCTEST_IRQ_I2C      3
+#define SOCTEST_IRQ_DMA    4
 
 #define SOCTEST_I2C_SLAVE_ADDR  0x50
 
@@ -47,6 +52,7 @@ struct SocTestMachineState {
     SocTestTimerState timer;
     DeviceState *plic;
     DesignWareI2CState i2c;
+    SocTestDMAState dma;
 };
 
 #define TYPE_SOC_TEST_MACHINE MACHINE_TYPE_NAME("soctest")
@@ -66,6 +72,19 @@ static void soctest_machine_init(MachineState *machine){
 
     memory_region_add_subregion(system_memory, SOCTEST_DDR_BASE, machine->ram);
 
+    // 初始化ACLINT
+    riscv_aclint_swi_create(system_memory, SOCTEST_CLINT_BASE, 
+                            0, machine->smp.cpus, 
+                            false);   /* sswi:false = M 模式 MSIP */
+    riscv_aclint_mtimer_create(system_memory,
+                               SOCTEST_CLINT_BASE + 0x4000,
+                               RISCV_ACLINT_DEFAULT_MTIMER_SIZE,
+                               0, machine->smp.cpus,
+                               RISCV_ACLINT_DEFAULT_MTIMECMP,
+                               RISCV_ACLINT_DEFAULT_MTIME, 
+                               RISCV_ACLINT_DEFAULT_TIMEBASE_FREQ,
+                               true);                                               
+
     // 初始化PLIC
     g_autofree char *plic_hart_config = riscv_plic_hart_config_string(machine->smp.cpus);
     s->plic = sifive_plic_create(system_memory, SOCTEST_PLIC_BASE, 
@@ -82,7 +101,14 @@ static void soctest_machine_init(MachineState *machine){
                                  SOCTEST_PLIC_CONTEXT_STRIDE,
                                  SOCTEST_PLIC_SIZE);
 
-
+    // 初始化DMA
+    object_initialize_child(OBJECT(machine), "dma", &s->dma, TYPE_SOCTEST_DMA);
+    object_property_set_link(OBJECT(&s->dma), "dma-memory",
+                             OBJECT(get_system_memory()), &error_fatal);
+    sysbus_realize(SYS_BUS_DEVICE(&s->dma), &error_fatal);
+    sysbus_mmio_map(SYS_BUS_DEVICE(&s->dma), 0, SOCTEST_DMA_BASE);
+    sysbus_connect_irq(SYS_BUS_DEVICE(&s->dma), 0, qdev_get_gpio_in(s->plic, SOCTEST_IRQ_DMA));                         
+                                 
     // 初始化UART0, 便捷写法
     serial_mm_init(system_memory, SOCTEST_UART0_BASE, 2, 
                    qdev_get_gpio_in(s->plic, SOCTEST_IRQ_UART0), 

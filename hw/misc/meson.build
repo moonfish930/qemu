@@ -184,3 +184,5 @@ system_ss.add(when: 'CONFIG_AXIADO_CLK', if_true: files('axiado_clk.c'))
 system_ss.add(when: 'CONFIG_QCOM_QDSP6SS_CLK', if_true: files('qcom-qdsp6ss-clk.c'))
 
 system_ss.add(when: 'CONFIG_SOCTEST_TIMER', if_true: files('soctest_timer.c'))
+
+system_ss.add(when: 'CONFIG_SOCTEST_DMA', if_true: files('soctest_dma.c'))

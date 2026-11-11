@@ -111,6 +111,14 @@ soctest_timer_read(uint64_t offset, unsigned size, uint32_t value) "offset 0x%"P
 soctest_timer_write(uint64_t offset, unsigned size, uint32_t value) "offset 0x%"PRIx64" size %u value 0x%"PRIx32
 soctest_timer_tick(uint32_t ticks) "ticks %u"
 
+# soctest_dma.c
+soctest_dma_read(uint64_t offset, unsigned size, uint32_t value) "offset 0x%"PRIx64" size %u value 0x%"PRIx32
+soctest_dma_write(uint64_t offset, unsigned size, uint32_t value) "offset 0x%"PRIx64" size %u value 0x%"PRIx32
+soctest_dma_copy(uint64_t src, uint64_t dst, uint32_t len) "0x%"PRIx64" -> 0x%"PRIx64" len %u"
+soctest_dma_desc(unsigned index, uint64_t src, uint64_t dst, uint32_t len, uint32_t status) "desc[%u] 0x%"PRIx64" -> 0x%"PRIx64" len %u status %u"
+soctest_dma_done(uint32_t status) "status 0x%"PRIx32
+soctest_dma_fault(bool is_write, uint64_t addr, uint32_t len) "write=%d fault addr 0x%"PRIx64" len %u"
+
 # mps2-scc.c
 mps2_scc_read(uint64_t offset, uint64_t data, unsigned size) "MPS2 SCC read: offset 0x%" PRIx64 " data 0x%" PRIx64 " size %u"
 mps2_scc_write(uint64_t offset, uint64_t data, unsigned size) "MPS2 SCC write: offset 0x%" PRIx64 " data 0x%" PRIx64 " size %u"

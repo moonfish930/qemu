@@ -302,6 +302,9 @@ config SOPHGO_CV1800B_CLK
 config SOCTEST_TIMER
     bool
 
+config SOCTEST_DMA
+    bool
+    
 source macio/Kconfig
 
 config QCOM_QDSP6SS_CLK

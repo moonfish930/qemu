@@ -205,3 +205,5 @@ config SOCTEST
     select SIFIVE_PLIC
     select DESIGNWARE_I2C
     select I2C_ECHO
+    select RISCV_ACLINT
+    select SOCTEST_DMA
