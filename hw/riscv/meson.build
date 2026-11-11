@@ -27,4 +27,6 @@ riscv_ss.add(when: 'CONFIG_SOPHGO_CV1800B', if_true: files('cv1800b.c'))
 riscv_ss.add(when: 'CONFIG_MILKV_DUO', if_true: files('milkv_duo.c'))
 riscv_ss.add(when: 'CONFIG_SOCTEST', if_true: files('soc_test.c'))
 
+riscv_ss.add(when: 'CONFIG_SOCTEST', if_true: files('soc_test.c'))
+
 hw_arch += {'riscv': riscv_ss}
