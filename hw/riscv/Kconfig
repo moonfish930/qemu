@@ -208,3 +208,4 @@ config SOCTEST
     select RISCV_ACLINT
     select SOCTEST_DMA
     select SIFIVE_TEST
+    select DEVICE_TREE
