@@ -13,11 +13,13 @@
 #include "hw/char/serial-mm.h"
 #include "hw/misc/soctest_timer.h"
 #include "hw/misc/soctest_dma.h"
+#include "hw/misc/sifive_test.h"
 #include "system/memory.h"
 #include "system/system.h"
 #include "system/address-spaces.h"
 #include "target/riscv/cpu.h"
 
+#define SOCTEST_TEST_BASE    0x00100000
 #define SOCTEST_CLINT_BASE   0x02000000 
 #define SOCTEST_PLIC_BASE    0x0c000000
 #define SOCTEST_UART0_BASE   0x10000000
@@ -100,6 +102,9 @@ static void soctest_machine_init(MachineState *machine){
                                  SOCTEST_PLIC_CONTEXT_BASE,
                                  SOCTEST_PLIC_CONTEXT_STRIDE,
                                  SOCTEST_PLIC_SIZE);
+
+    /* SiFive Test finisher:guest 写 0x5555/0x3333/0x7777 → 关机 / panic / 复位 */
+    sifive_test_create(SOCTEST_TEST_BASE);
 
     // 初始化DMA
     object_initialize_child(OBJECT(machine), "dma", &s->dma, TYPE_SOCTEST_DMA);

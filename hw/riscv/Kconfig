@@ -207,3 +207,4 @@ config SOCTEST
     select I2C_ECHO
     select RISCV_ACLINT
     select SOCTEST_DMA
+    select SIFIVE_TEST
